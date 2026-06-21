@@ -1,92 +1,94 @@
-import streamlit as st
+import gradio as gr
 import pandas as pd
 import joblib
 
 model = joblib.load("rf_clinical_pirad.pkl")
 
-st.title("RF Clinical + PI-RADS Prostate Cancer Predictor")
 
-st.write(
-    "Predict probability of prostate cancer using clinical variables and PI-RADS."
-)
-
-age = st.number_input("Age", value=65.0)
-
-dre = st.selectbox(
-    "DRE",
-    [0, 1],
-    format_func=lambda x: "Negative" if x == 0 else "Positive"
-)
-
-psa = st.number_input("PSA (ng/mL)", value=6.0)
-
-freepsa = st.number_input("free PSA (ng/mL)", value=1.0)
-
-phi = st.number_input("PHI", value=35.0)
-
-ratio = st.number_input(
-    "free/total PSA ratio",
-    value=0.15
-)
-
-volume = st.number_input(
-    "Prostate Volume (mL)",
-    value=40.0
-)
-
-p2psa = st.number_input(
-    "p2PSA",
-    value=20.0
-)
-
-psad = st.number_input(
-    "PSAD",
-    value=0.15
-)
-
-pirad = st.selectbox(
-    "PI-RADS",
-    [1, 2, 3, 4, 5]
-)
-
-if st.button("Predict"):
+def predict_pca(
+    Age,
+    DRE,
+    PSA,
+    freePSA,
+    PHI,
+    free_total_PSA_ratio,
+    Prostate_volume,
+    p2PSA,
+    PSAD,
+    PIRAD
+):
 
     X = pd.DataFrame([{
-
-        "Age": age,
-        "DRE": dre,
-        "PSA": psa,
-        "freePSA": freepsa,
-        "PHI": phi,
-        "free_total_PSA_ratio": ratio,
-        "Prostate_volume": volume,
-        "p2PSA": p2psa,
-        "PSAD": psad,
-        "PIRAD": pirad
-
+        "Age": Age,
+        "DRE": DRE,
+        "PSA": PSA,
+        "freePSA": freePSA,
+        "PHI": PHI,
+        "free_total_PSA_ratio": free_total_PSA_ratio,
+        "Prostate_volume": Prostate_volume,
+        "p2PSA": p2PSA,
+        "PSAD": PSAD,
+        "PIRAD": PIRAD
     }])
 
-    prob = model.predict_proba(X)[0,1]
-
-    st.metric(
-        "PCa Probability",
-        f"{prob*100:.1f}%"
-    )
+    prob = model.predict_proba(X)[0, 1]
 
     if prob < 0.20:
-
-        st.success(
-            "Low Risk"
-        )
-
+        risk = "Low Risk"
     elif prob < 0.50:
-
-        st.warning(
-            "Intermediate Risk"
-        )
-
+        risk = "Intermediate Risk"
     else:
+        risk = "High Risk"
 
-        st.error(
-            "High Risk"
+    return f"{prob*100:.1f}%", risk
+
+
+demo = gr.Interface(
+    fn=predict_pca,
+
+    inputs=[
+
+        gr.Number(label="Age"),
+
+        gr.Dropdown(
+            choices=[0,1],
+            value=0,
+            label="DRE (0=Negative, 1=Positive)"
+        ),
+
+        gr.Number(label="PSA"),
+
+        gr.Number(label="freePSA"),
+
+        gr.Number(label="PHI"),
+
+        gr.Number(label="free_total_PSA_ratio"),
+
+        gr.Number(label="Prostate_volume"),
+
+        gr.Number(label="p2PSA"),
+
+        gr.Number(label="PSAD"),
+
+        gr.Dropdown(
+            choices=[1,2,3,4,5],
+            value=3,
+            label="PI-RADS"
         )
+
+    ],
+
+    outputs=[
+        gr.Textbox(label="PCa Probability"),
+        gr.Textbox(label="Risk Category")
+    ],
+
+    title="RF Clinical + PI-RADS Prostate Cancer Predictor",
+
+    description="""
+Random Forest model for prostate cancer prediction
+using clinical variables and PI-RADS score.
+"""
+)
+
+demo.launch()
